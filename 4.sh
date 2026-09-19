@@ -27,7 +27,8 @@ TEAVM_VERSION="0.15.0"
 
 # 各パーツを個別に定義して最後に組み立てる
 TEAVM_JAR="cli-${TEAVM_VERSION}-all.jar"
-TEAVM_URL="${PROTO}//${HOST}/${P1}/${P2}/${P3}/${P4}/${TEAVM_VERSION}/${TEAVM_JAR}"
+TEAVMg_URL="${PROTO}//${HOST}/${P1}/${P2}/${P3}/${P4}/${TEAVM_VERSION}/${TEAVM_JAR}"
+TEAVM_URL="https://repo1.maven.org/maven2/org/teavm/teavm-cli/0.13.1/teavm-cli-0.13.1-all.jar"
 
 echo "Target URL: $TEAVM_URL"
 
