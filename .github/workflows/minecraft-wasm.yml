@@ -26,7 +26,7 @@ jobs:
 
     # 最新のバイトコードを安全に処理するため、JDK 25をインストール
     - name: 3. Java開発環境 (JDK 25) のセットアップ
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '25'
         distribution: 'temurin'
