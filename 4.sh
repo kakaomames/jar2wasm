@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-# 引数からバージョンを受け取る
 TARGET_VERSION=${1:-"26.3"}
 
 echo "========================================="
@@ -14,34 +13,47 @@ if [ ! -d "./workspace/flat_classes" ]; then
     exit 1
 fi
 
-echo "=== Step 4-1: Preparing TeaVM Compiler ==="
+echo "=== Step 4-1: Preparing TeaVM and Commons-CLI ==="
 
-# --- URLコンポーネントの完全分解 (スラッシュ分割スタイル) ---
+# --- 共通URLコンポーネントの完全分解 (スラッシュ分割スタイル) ---
 PROTO="https:"
-HOST="repo.maven.apache.org"
+HOST="repo1.maven.org"
 P1="maven2"
-P2="org"
-P3="teavm"
-P4="cli"
-TEAVM_VERSION="0.15.0"
 
-# 各パーツを個別に定義して最後に組み立てる
-TEAVM_JAR="cli-${TEAVM_VERSION}-all.jar"
-TEAVMg_URL="${PROTO}//${HOST}/${P1}/${P2}/${P3}/${P4}/${TEAVM_VERSION}/${TEAVM_JAR}"
-TEAVM_URL="https://repo1.maven.org/maven2/org/teavm/teavm-cli/0.13.1/teavm-cli-0.13.1-all.jar"
+# 1. TeaVM CLI のパーツ定義
+P2_TV="org"
+P3_TV="teavm"
+P4_TV="teavm-cli"
+TEAVM_VERSION="0.13.1"
+TEAVM_JAR="teavm-cli-${TEAVM_VERSION}-all.jar"
+TEAVM_URL="${PROTO}//${HOST}/${P1}/${P2_TV}/${P3_TV}/${P4_TV}/${TEAVM_VERSION}/${TEAVM_JAR}"
 
-echo "Target URL: $TEAVM_URL"
+# 2. 不足している Commons-CLI のパーツ定義
+P2_CC="commons-cli"
+P3_CC="commons-cli"
+CLI_VERSION="1.9.0"
+CLI_JAR="commons-cli-${CLI_VERSION}.jar"
+CLI_URL="${PROTO}//${HOST}/${P1}/${P2_CC}/${P3_CC}/${CLI_VERSION}/${CLI_JAR}"
 
+# それぞれダウンロード
 if [ ! -f "$TEAVM_JAR" ]; then
     echo "Downloading TeaVM CLI..."
     curl -sSL "$TEAVM_URL" -o "$TEAVM_JAR"
+fi
+
+if [ ! -f "$CLI_JAR" ]; then
+    echo "Downloading Missing Dependency (Commons-CLI)..."
+    curl -sSL "$CLI_URL" -o "$CLI_JAR"
 fi
 
 mkdir -p ./target/teavm-c
 mkdir -p ./dist/ll_files
 
 echo "=== Step 4-2: Transpiling Java Classes to C Code ==="
-java -jar "$TEAVM_JAR" \
+# 【ここがミソ】コロン(:)で繋いで、TeaVMとCommons-CLIの両方をクラスパスに入れる
+# さらにマイクラをパースするために十分なヒープメモリ (-Xmx4g) を念のため確保します
+java -Xmx4g -cp "${TEAVM_JAR}:${CLI_JAR}" \
+    org.teavm.cli.TeaVMRunner \
     -target c \
     -cp ./workspace/flat_classes \
     -main net.minecraft.client.main.Main \
