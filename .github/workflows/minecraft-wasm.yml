@@ -1,0 +1,67 @@
+name: Minecraft to LLVM IR Heavy Pipeline
+
+on:
+  push:
+    branches: [ "main" ] # mainブランチにプッシュされたら自動実行
+  workflow_dispatch: # GitHubの画面から手動でいつでも実行できるボタンを追加
+    inputs:
+      minecraft_version:
+        description: 'WASM化したいマイクラのバージョンを指定'
+        required: true
+        default: '26.3'
+
+jobs:
+  emit-llvm-ir:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 1. コードのチェックアウト
+      uses: actions/checkout@v4
+
+    # 最新マイクラ（Java 25/27要求）や、TeaVM/Clangを動かすための各種ツールチェーンを爆速インストール
+    - name: 2. 基本ツールとLLVM/Clang環境のセットアップ
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq unzip clang llvm
+
+    # 最新のバイトコードを安全に処理するため、JDK 25をインストール
+    - name: 3. Java開発環境 (JDK 25) のセットアップ
+      uses: actions/setup-java@v4
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+
+    # あなたが作ったオリジナルの1.shを実行し、id.json/url.json/type.jsonのテキスト連動リストを生成
+    - name: 4. [1.sh] バージョンマニフェストの解体とインデックス化
+      run: |
+        chmod +x 1.sh
+        ./1.sh
+
+    # 2.shを叩き、id.jsonの行番号連動で指定バージョンのJSONファイルを正確に狙い撃ちダウンロード
+    - name: 5. [2.sh] 行番号連動による個別メタデータJSONのダウンロード
+      run: |
+        chmod +x 2.sh
+        # 手動実行時は入力されたバージョン、無指定時はデフォルト(26.3)を使用
+        TARGET_VER="${{ github.event.inputs.minecraft_version || '26.3' }}"
+        ./2.sh "$TARGET_VER"
+
+    # jq対応版の3.shを叩き、本体のclient.jarと全librariesのJARを1つの平坦なフォルダに根こそぎ上書き解凍・マージ
+    - name: 6. [3.sh] e.json(バージョンJSON)からの全ライブラリ一括フラットマージ
+      run: |
+        chmod +x 3.sh
+        TARGET_VER="${{ github.event.inputs.minecraft_version || '26.3' }}"
+        ./3.sh "$TARGET_VER"
+
+    # 4.shを叩き、合体したクラス群をTeaVMでCコード化 ➡ Clangで一気にLLVM IRへ叩き落とす！
+    - name: 7. [4.sh] TeaVMとClangによるLLVM IR (.ll) の錬成
+      run: |
+        chmod +x 4.sh
+        TARGET_VER="${{ github.event.inputs.minecraft_version || '26.3' }}"
+        ./4.sh "$TARGET_VER"
+
+    # 錬成された超巨大なマイクラの .ll ファイルを、GitHubの画面からZIPでダウンロードできるように保存！
+    - name: 8. 生成された LLVM IR (.ll) を成果物としてアップロード
+      uses: actions/upload-artifact@v4
+      with:
+        name: minecraft-llvm-ir-result
+        path: ./dist/ll_files/
