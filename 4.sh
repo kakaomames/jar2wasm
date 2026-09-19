@@ -15,7 +15,7 @@ fi
 
 echo "=== Step 4-1: Resolving TeaVM Dependencies via Maven ==="
 
-# 💡 最新の TeaVM 0.15.0 を指定した pom.xml をその場で錬成する
+# 💡 確実に中央リポジトリに存在する 0.13.0 を指定した pom.xml をその場で錬成
 cat << 'EOF' > pom.xml
 <project xmlns="http://apache.org" xmlns:xsi="http://w3.org"
   xsi:schemaLocation="http://apache.org http://apache.org">
@@ -25,11 +25,11 @@ cat << 'EOF' > pom.xml
   <version>1.0-SNAPSHOT</version>
 
   <dependencies>
-    <!-- 【ハック1】バージョンを最新の 0.15.0 に一気に引き上げる！ -->
+    <!-- 確実に一発ダウンロードできる安定版の 0.13.0 を指定 -->
     <dependency>
       <groupId>org.teavm</groupId>
       <artifactId>teavm-cli</artifactId>
-      <version>0.15.0</version>
+      <version>0.13.0</version>
     </dependency>
   </dependencies>
 </project>
@@ -38,7 +38,7 @@ EOF
 rm -rf libs
 mkdir -p libs
 
-# 0.15.0 の全プラグインと依存関係を芋づる式に一括ダウンロード！
+# 0.13.0 の依存関係を libs フォルダへ確実に一括ダウンロード
 mvn dependency:copy-dependencies -DoutputDirectory=libs
 
 rm pom.xml
@@ -49,9 +49,9 @@ mkdir -p ./target/teavm-c
 mkdir -p ./dist/ll_files
 
 echo "=== Step 4-2: Transpiling Java Classes to C Code ==="
-# 💡 【ハック2】クラス欠損をエラーにせず、警告（WARNING）としてスキップして
-# 強制的にコンパイルを続行させる設定を追加。
-# さらに大規模解析用に限界までメモリ設定を 4g から 6g へブーストします。
+# 💡 0.13.0 の解析エンジンを回します。
+# 不整合なクラスやリフレクションを見失っても、WARNINGとして処理して最後までCソースを吐き出させる設定を維持。
+# メモリも 6GB のハイパワーブースト状態のまま挑みます！
 java -Xmx6g -cp "libs/*" \
     org.teavm.cli.TeaVMRunner \
     -t C \
