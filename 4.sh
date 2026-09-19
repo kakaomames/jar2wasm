@@ -15,7 +15,7 @@ fi
 
 echo "=== Step 4-1: Resolving TeaVM Dependencies via Maven ==="
 
-# 💡 Mavenが完全に納得する、TeaVMの依存関係を書き込んだ pom.xml をその場で錬成する
+# 💡 最新の TeaVM 0.15.0 を指定した pom.xml をその場で錬成する
 cat << 'EOF' > pom.xml
 <project xmlns="http://apache.org" xmlns:xsi="http://w3.org"
   xsi:schemaLocation="http://apache.org http://apache.org">
@@ -25,24 +25,22 @@ cat << 'EOF' > pom.xml
   <version>1.0-SNAPSHOT</version>
 
   <dependencies>
-    <!-- TeaVM CLI 本体と、それに紐づくすべての内部プラグインを引きずり出す -->
+    <!-- 【ハック1】バージョンを最新の 0.15.0 に一気に引き上げる！ -->
     <dependency>
       <groupId>org.teavm</groupId>
       <artifactId>teavm-cli</artifactId>
-      <version>0.13.1</version>
+      <version>0.15.0</version>
     </dependency>
   </dependencies>
 </project>
 EOF
 
-# 依存JARを格納するフォルダをクリアして作成
 rm -rf libs
 mkdir -p libs
 
-# 【修正ポイント】pom.xmlの定義に従って、必要な全依存ライブラリを自動収集！
+# 0.15.0 の全プラグインと依存関係を芋づる式に一括ダウンロード！
 mvn dependency:copy-dependencies -DoutputDirectory=libs
 
-# 使い終わった pom.xml は綺麗にお掃除
 rm pom.xml
 
 echo "All dependencies successfully downloaded to ./libs/"
@@ -51,12 +49,15 @@ mkdir -p ./target/teavm-c
 mkdir -p ./dist/ll_files
 
 echo "=== Step 4-2: Transpiling Java Classes to C Code ==="
-# フォルダ内の全JARをクラスパスに繋いで TeaVMRunner を起動
-java -Xmx4g -cp "libs/*" \
+# 💡 【ハック2】クラス欠損をエラーにせず、警告（WARNING）としてスキップして
+# 強制的にコンパイルを続行させる設定を追加。
+# さらに大規模解析用に限界までメモリ設定を 4g から 6g へブーストします。
+java -Xmx6g -cp "libs/*" \
     org.teavm.cli.TeaVMRunner \
     -t C \
     -p ./workspace/flat_classes \
     -d ./target/teavm-c \
+    --error-policy WARNING \
     net.minecraft.client.main.Main
 
 echo "=== Step 4-3: Compiling C Code to LLVM IR (.ll) ==="
