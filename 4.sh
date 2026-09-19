@@ -15,12 +15,10 @@ fi
 
 echo "=== Step 4-1: Preparing TeaVM and Commons-CLI ==="
 
-# --- 共通URLコンポーネントの完全分解 (スラッシュ分割スタイル) ---
 PROTO="https:"
 HOST="repo1.maven.org"
 P1="maven2"
 
-# 1. TeaVM CLI のパーツ定義
 P2_TV="org"
 P3_TV="teavm"
 P4_TV="teavm-cli"
@@ -28,14 +26,12 @@ TEAVM_VERSION="0.13.1"
 TEAVM_JAR="teavm-cli-${TEAVM_VERSION}-all.jar"
 TEAVM_URL="${PROTO}//${HOST}/${P1}/${P2_TV}/${P3_TV}/${P4_TV}/${TEAVM_VERSION}/${TEAVM_JAR}"
 
-# 2. 不足している Commons-CLI のパーツ定義
 P2_CC="commons-cli"
 P3_CC="commons-cli"
 CLI_VERSION="1.9.0"
 CLI_JAR="commons-cli-${CLI_VERSION}.jar"
 CLI_URL="${PROTO}//${HOST}/${P1}/${P2_CC}/${P3_CC}/${CLI_VERSION}/${CLI_JAR}"
 
-# それぞれダウンロード
 if [ ! -f "$TEAVM_JAR" ]; then
     echo "Downloading TeaVM CLI..."
     curl -sSL "$TEAVM_URL" -o "$TEAVM_JAR"
@@ -50,15 +46,17 @@ mkdir -p ./target/teavm-c
 mkdir -p ./dist/ll_files
 
 echo "=== Step 4-2: Transpiling Java Classes to C Code ==="
-# 【ここがミソ】コロン(:)で繋いで、TeaVMとCommons-CLIの両方をクラスパスに入れる
-# さらにマイクラをパースするために十分なヒープメモリ (-Xmx4g) を念のため確保します
+# 【修正ポイント】
+# -t C          : ターゲットにC言語を指定
+# -p ...        : クラスパスを指定
+# -d ...        : 出力先ディレクトリを指定
+# 一番最後      : マイクラのメインクラスを直接配置
 java -Xmx4g -cp "${TEAVM_JAR}:${CLI_JAR}" \
     org.teavm.cli.TeaVMRunner \
-    -target c \
-    -cp ./workspace/flat_classes \
-    -main net.minecraft.client.main.Main \
+    -t C \
+    -p ./workspace/flat_classes \
     -d ./target/teavm-c \
-    --minified false
+    net.minecraft.client.main.Main
 
 echo "=== Step 4-3: Compiling C Code to LLVM IR (.ll) ==="
 if [ -f "./target/teavm-c/main.c" ]; then
