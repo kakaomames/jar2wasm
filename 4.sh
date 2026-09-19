@@ -13,45 +13,26 @@ if [ ! -d "./workspace/flat_classes" ]; then
     exit 1
 fi
 
-echo "=== Step 4-1: Preparing TeaVM and Commons-CLI ==="
+echo "=== Step 4-1: Resolving TeaVM Dependencies via Maven ==="
 
-PROTO="https:"
-HOST="repo1.maven.org"
-P1="maven2"
+# 依存関係を一時的に集めるフォルダを作成
+mkdir -p libs
 
-P2_TV="org"
-P3_TV="teavm"
-P4_TV="teavm-cli"
-TEAVM_VERSION="0.13.1"
-TEAVM_JAR="teavm-cli-${TEAVM_VERSION}-all.jar"
-TEAVM_URL="${PROTO}//${HOST}/${P1}/${P2_TV}/${P3_TV}/${P4_TV}/${TEAVM_VERSION}/${TEAVM_JAR}"
+# 【ここが核心】Mavenを使って teavm-cli とその内部プラグイン(classlib等)をすべて一括ダウンロード！
+# 0.13.1 をターゲットにして、必要な関連JARを全部 libs フォルダに叩き込みます
+mvn dependency:copy-dependencies \
+  -Dartifact=org.teavm:teavm-cli:0.13.1:jar \
+  -DoutputDirectory=libs \
+  -Dtransitive=true
 
-P2_CC="commons-cli"
-P3_CC="commons-cli"
-CLI_VERSION="1.9.0"
-CLI_JAR="commons-cli-${CLI_VERSION}.jar"
-CLI_URL="${PROTO}//${HOST}/${P1}/${P2_CC}/${P3_CC}/${CLI_VERSION}/${CLI_JAR}"
-
-if [ ! -f "$TEAVM_JAR" ]; then
-    echo "Downloading TeaVM CLI..."
-    curl -sSL "$TEAVM_URL" -o "$TEAVM_JAR"
-fi
-
-if [ ! -f "$CLI_JAR" ]; then
-    echo "Downloading Missing Dependency (Commons-CLI)..."
-    curl -sSL "$CLI_URL" -o "$CLI_JAR"
-fi
+echo "All dependencies downloaded to ./libs/"
 
 mkdir -p ./target/teavm-c
 mkdir -p ./dist/ll_files
 
 echo "=== Step 4-2: Transpiling Java Classes to C Code ==="
-# 【修正ポイント】
-# -t C          : ターゲットにC言語を指定
-# -p ...        : クラスパスを指定
-# -d ...        : 出力先ディレクトリを指定
-# 一番最後      : マイクラのメインクラスを直接配置
-java -Xmx4g -cp "${TEAVM_JAR}:${CLI_JAR}" \
+# ドキュメントの指示通り、"libs/*" でフォルダ内の全JARをクラスパスに繋いで一気呵成に起動！
+java -Xmx4g -cp "libs/*" \
     org.teavm.cli.TeaVMRunner \
     -t C \
     -p ./workspace/flat_classes \
